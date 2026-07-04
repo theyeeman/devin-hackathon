@@ -1,15 +1,6 @@
 // Content script for LinkedIn feed interaction
 console.log('Content script loaded on:', window.location.href);
 
-// Listen for messages from popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'reAddButtons') {
-    console.log('Manual re-add buttons requested');
-    addButtonsToPosts();
-    sendResponse({ success: true });
-  }
-});
-
 // Only run on main feed
 if (!window.location.href.includes('linkedin.com/feed/')) {
   console.log('Not on LinkedIn feed, skipping');
