@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Devin Hackathon",
+  "version": "1.0",
+  "description": "Devin Hackathon",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": []
+}
