@@ -50,6 +50,7 @@ async def generate_comments(request: TrollRequest):
         result = await llm_service.generate_troll_comments(
             post_content=request.content,
             profile_url=request.user,
+            troll_level=request.troll_level,
         )
     except Exception as e:
         raise HTTPException(
