@@ -188,29 +188,8 @@ function addButtonsToPosts() {
   });
 }
 
-function addReadButton(post) {
-  // Insert button directly into the post's DOM so it scrolls naturally
-  const button = createReadButton(post);
-  
-  const buttonId = 'trolledin-btn-' + Math.random().toString(36).substr(2, 9);
-  button.id = buttonId;
-  
-  // Mark the post AFTER button insertion to avoid nested detection issues
-  post.classList.add('trolledin-post-marker');
-  
-  // Try to find a good insertion point
-  const followButton = findFollowButton(post);
-  
-  if (followButton && followButton.parentNode) {
-    // Insert next to Follow button
-    followButton.parentNode.insertBefore(button, followButton.nextSibling);
-  } else {
-    // Fallback: insert at the beginning of the post
-    post.insertBefore(button, post.firstChild);
-  }
-  
-  // Apply strong inline styles to protect from LinkedIn CSS
-  button.style.cssText = `
+function getButtonStyles() {
+  return `
     background: #dc2626 !important;
     color: white !important;
     padding: 8px 16px !important;
@@ -233,6 +212,31 @@ function addReadButton(post) {
     visibility: visible !important;
     opacity: 1 !important;
   `;
+}
+
+function addReadButton(post) {
+  // Insert button directly into the post's DOM so it scrolls naturally
+  const button = createReadButton(post);
+  
+  const buttonId = 'trolledin-btn-' + Math.random().toString(36).substr(2, 9);
+  button.id = buttonId;
+  
+  // Mark the post AFTER button insertion to avoid nested detection issues
+  post.classList.add('trolledin-post-marker');
+  
+  // Try to find a good insertion point
+  const followButton = findFollowButton(post);
+  
+  if (followButton && followButton.parentNode) {
+    // Insert next to Follow button
+    followButton.parentNode.insertBefore(button, followButton.nextSibling);
+  } else {
+    // Fallback: insert at the beginning of the post
+    post.insertBefore(button, post.firstChild);
+  }
+  
+  // Apply strong inline styles to protect from LinkedIn CSS
+  button.style.cssText = getButtonStyles();
   
   // Use MutationObserver to protect button from removal
   const observer = new MutationObserver((mutations) => {
@@ -246,29 +250,7 @@ function addReadButton(post) {
             post.insertBefore(button, post.firstChild);
           }
           // Re-apply styles
-          button.style.cssText = `
-            background: #dc2626 !important;
-            color: white !important;
-            padding: 8px 16px !important;
-            border-radius: 16px !important;
-            font-size: 14px !important;
-            font-weight: 600 !important;
-            cursor: pointer !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 6px !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
-            margin: 4px !important;
-            position: relative !important;
-            z-index: 999999 !important;
-            border: none !important;
-            text-decoration: none !important;
-            pointer-events: auto !important;
-            white-space: nowrap !important;
-            flex-shrink: 0 !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-          `;
+          button.style.cssText = getButtonStyles();
         }
       });
     });
@@ -505,107 +487,3 @@ function extractContent(post) {
   return post.textContent.substring(0, 5000).trim();
 }
 
-function extractTimestamp(post) {
-  const selectors = [
-    '.feed-shared-actor__sub-description',
-    '.update-components-actor__sub-description',
-    'span[aria-label*="ago"]'
-  ];
-  
-  for (const selector of selectors) {
-    const element = post.querySelector(selector);
-    if (element) {
-      return element.textContent.trim();
-    }
-  }
-  
-  return 'Unknown Time';
-}
-
-function extractLikes(post) {
-  const selectors = [
-    '[data-testid="social-actions__reaction-count"]',
-    '.social-details-social-counts__reactions-count',
-    'span[aria-label*="reaction"]'
-  ];
-  
-  for (const selector of selectors) {
-    const element = post.querySelector(selector);
-    if (element) {
-      return element.textContent.trim();
-    }
-  }
-  
-  return '0';
-}
-
-function extractComments(post) {
-  const selectors = [
-    '[data-testid="social-actions__comments-count"]',
-    '.social-details-social-counts__comments-count'
-  ];
-  
-  for (const selector of selectors) {
-    const element = post.querySelector(selector);
-    if (element) {
-      return element.textContent.trim();
-    }
-  }
-  
-  const commentMatch = post.outerHTML.match(/(\d+)\s*comments?/i);
-  return commentMatch ? commentMatch[1] : '0';
-}
-
-function extractReposts(post) {
-  const selectors = [
-    '[data-testid="social-actions__repost-count"]',
-    '.social-details-social-counts__comments-count'
-  ];
-  
-  for (const selector of selectors) {
-    const element = post.querySelector(selector);
-    if (element) {
-      return element.textContent.trim();
-    }
-  }
-  
-  const repostMatch = post.outerHTML.match(/(\d+)\s*reposts?/i);
-  return repostMatch ? repostMatch[1] : '0';
-}
-
-function extractUrl(post) {
-  // Try to find data-urn or data-id attributes first (most reliable)
-  const dataUrn = post.getAttribute('data-urn') || post.querySelector('[data-urn]')?.getAttribute('data-urn');
-  const dataId = post.getAttribute('data-id') || post.querySelector('[data-id]')?.getAttribute('data-id');
-  
-  if (dataUrn) {
-    // Extract activity ID from URN (format: urn:li:activity:1234567890)
-    const activityMatch = dataUrn.match(/urn:li:activity:(\d+)/);
-    if (activityMatch) {
-      return `https://www.linkedin.com/feed/update/urn:li:activity:${activityMatch[1]}/`;
-    }
-  }
-  
-  if (dataId) {
-    // Try to use data-id
-    return `https://www.linkedin.com/feed/update/${dataId}/`;
-  }
-  
-  // Try to find a direct link to the post
-  const link = post.querySelector('a[href*="/posts/"], a[href*="/activity/"]');
-  if (link) {
-    return link.href;
-  }
-  
-  // Try to find any link within the post that might be the post URL
-  const allLinks = post.querySelectorAll('a[href]');
-  for (const a of allLinks) {
-    const href = a.href;
-    if (href.includes('linkedin.com') && (href.includes('feed/update') || href.includes('posts') || href.includes('activity'))) {
-      return href;
-    }
-  }
-  
-  // Return empty string if no URL found (better than returning wrong feed URL)
-  return '';
-}

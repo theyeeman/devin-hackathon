@@ -23,7 +23,8 @@ async function sendToBackend(postData) {
     // For now, just log to console
     console.log('Sending post data to backend:', JSON.stringify(postData, null, 2));
     
-    // TODO: Uncomment when backend is ready
+    // TODO: Integrate with backend API when ready
+    // Example:
     // const response = await fetch('http://localhost:8000/api/linkedin-post', {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
