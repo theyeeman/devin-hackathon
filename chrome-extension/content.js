@@ -245,15 +245,25 @@ function writeComment(post, commentText) {
 }
 
 function addGenerateResponseButton(commentInput, post) {
-  // Check if button already exists
-  if (commentInput.parentElement.querySelector('.trolledin-generate-response-button')) {
+  // Check if buttons already exist (as sibling of parent since we insert after)
+  if (commentInput.parentElement.nextElementSibling?.classList.contains('trolledin-troll-buttons-container')) {
     return;
   }
   
-  const button = document.createElement('button');
-  button.textContent = 'Generate Response';
-  button.className = 'trolledin-generate-response-button';
-  button.style.cssText = `
+  // Create container for buttons
+  const buttonsContainer = document.createElement('div');
+  buttonsContainer.className = 'trolledin-troll-buttons-container';
+  buttonsContainer.style.cssText = `
+    display: flex;
+    gap: 8px;
+    margin-left: 8px;
+  `;
+  
+  // Create Normal Troll button (blue)
+  const normalButton = document.createElement('button');
+  normalButton.textContent = 'Normal Troll';
+  normalButton.className = 'trolledin-normal-troll-button';
+  normalButton.style.cssText = `
     background: #0a66c2 !important;
     color: white !important;
     padding: 6px 12px !important;
@@ -261,113 +271,161 @@ function addGenerateResponseButton(commentInput, post) {
     font-size: 12px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
-    margin-left: 8px !important;
     border: none !important;
     white-space: nowrap !important;
   `;
   
-  button.addEventListener('click', async () => {
-    // Show loading state with spinner and cycling text
-    const originalText = button.textContent;
-    button.disabled = true;
-    
-    // Add spinner
-    const spinner = document.createElement('div');
-    spinner.className = 'trolledin-spinner';
-    button.innerHTML = '';
-    button.appendChild(spinner);
-    
-    // Cycle through text states randomly
-    const textStates = [
-      'Roasting',
-      'Dragging',
-      'Cooking',
-      'Grilling',
-      'Flaming',
-      'Clowning',
-      'Rinsing',
-      'Torching',
-      'Scorching',
-      'Eviscerating',
-      'Skewering',
-      'Needling',
-      'Ribbing',
-      'Taunting',
-      'Baiting',
-      'Jabbing',
-      'Sniping',
-      'Zinging',
-      'Dunking',
-      'Trashing',
-      'Smoking',
-      'Bodying',
-      'Packing',
-      'Violating',
-      'Ratioing',
-      'Owning',
-      'Dogging',
-      'Dissing',
-      'Blasting',
-      'Sassing'
-    ];
-    const textInterval = setInterval(() => {
-      const randomIndex = Math.floor(Math.random() * textStates.length);
-      button.innerHTML = '';
-      button.appendChild(spinner);
-      const textSpan = document.createElement('span');
-      textSpan.textContent = textStates[randomIndex] + '...';
-      button.appendChild(textSpan);
-    }, 2000);
-    
-    try {
-      // Extract post data
-      const postData = extractPostData(post);
-      console.log('Sending to API:', JSON.stringify(postData, null, 2));
-      
-      // Call the API
-      const response = await fetch('http://localhost:8000/generate-comments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: postData.content,
-          user: postData.author_url
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('API response:', JSON.stringify(result, null, 2));
-      
-      // Randomly select one comment
-      if (result.comments && result.comments.length > 0) {
-        const randomIndex = Math.floor(Math.random() * result.comments.length);
-        const selectedComment = result.comments[randomIndex].comment;
-        
-        // Write the selected comment to the input field
-        writeComment(post, selectedComment);
-      } else {
-        console.error('No comments returned from API');
-      }
-    } catch (error) {
-      console.error('Error generating response:', error);
-    } finally {
-      // Stop text cycling
-      clearInterval(textInterval);
-      
-      // Reset button
-      button.textContent = originalText;
-      button.disabled = false;
-    }
-  });
+  // Create Spicy Troll button (red)
+  const spicyButton = document.createElement('button');
+  spicyButton.textContent = '🌶️ troll';
+  spicyButton.className = 'trolledin-spicy-troll-button';
+  spicyButton.style.cssText = `
+    background: #000000 !important;
+    color: white !important;
+    padding: 6px 12px !important;
+    border-radius: 16px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    border: none !important;
+    white-space: nowrap !important;
+  `;
   
-  // Insert button next to the comment input
-  commentInput.parentElement.style.display = 'flex';
-  commentInput.parentElement.style.alignItems = 'center';
-  commentInput.parentElement.style.justifyContent = 'space-between';
-  commentInput.parentElement.appendChild(button);
+  // Add click handlers
+  normalButton.addEventListener('click', () => handleTrollButtonClick(normalButton, spicyButton, buttonsContainer, post, 'normal'));
+  spicyButton.addEventListener('click', () => handleTrollButtonClick(spicyButton, normalButton, buttonsContainer, post, 'spicy'));
+  
+  buttonsContainer.appendChild(normalButton);
+  buttonsContainer.appendChild(spicyButton);
+  
+  // Insert container underneath the comment input
+  commentInput.parentElement.style.display = 'block';
+  commentInput.parentElement.style.alignItems = 'unset';
+  commentInput.parentElement.style.justifyContent = 'unset';
+  commentInput.parentElement.after(buttonsContainer);
+}
+
+async function handleTrollButtonClick(clickedButton, otherButton, container, post, trollLevel) {
+  // Store original buttons
+  const originalNormalButton = container.querySelector('.trolledin-normal-troll-button');
+  const originalSpicyButton = container.querySelector('.trolledin-spicy-troll-button');
+  
+  // Replace both buttons with loading element
+  container.innerHTML = '';
+  
+  const loadingElement = document.createElement('div');
+  loadingElement.className = 'trolledin-loading-element';
+  loadingElement.style.cssText = `
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #6b7280 !important;
+    color: white !important;
+  `;
+  
+  // Add spinner
+  const spinner = document.createElement('div');
+  spinner.className = 'trolledin-spinner';
+  loadingElement.appendChild(spinner);
+  
+  const textSpan = document.createElement('span');
+  loadingElement.appendChild(textSpan);
+  
+  container.appendChild(loadingElement);
+  
+  // Cycle through text states randomly
+  const textStates = [
+    'Roasting',
+    'Dragging',
+    'Cooking',
+    'Grilling',
+    'Flaming',
+    'Clowning',
+    'Rinsing',
+    'Torching',
+    'Scorching',
+    'Eviscerating',
+    'Skewering',
+    'Needling',
+    'Ribbing',
+    'Taunting',
+    'Baiting',
+    'Jabbing',
+    'Sniping',
+    'Zinging',
+    'Dunking',
+    'Trashing',
+    'Smoking',
+    'Bodying',
+    'Packing',
+    'Violating',
+    'Ratioing',
+    'Owning',
+    'Dogging',
+    'Dissing',
+    'Blasting',
+    'Sassing'
+  ];
+  
+  const textInterval = setInterval(() => {
+    const randomIndex = Math.floor(Math.random() * textStates.length);
+    textSpan.textContent = textStates[randomIndex] + '...';
+  }, 2000);
+  
+  try {
+    // Extract post data
+    const postData = extractPostData(post);
+    console.log('Sending to API:', JSON.stringify(postData, null, 2));
+    
+    // Call the API with troll_level
+    const response = await fetch('http://localhost:8000/generate-comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: postData.content,
+        user: postData.author_url,
+        troll_level: trollLevel
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log('API response:', JSON.stringify(result, null, 2));
+    
+    // Randomly select one comment
+    if (result.comments && result.comments.length > 0) {
+      const randomIndex = Math.floor(Math.random() * result.comments.length);
+      const selectedComment = result.comments[randomIndex].comment;
+      
+      // Write the selected comment to the input field
+      writeComment(post, selectedComment);
+    } else {
+      console.error('No comments returned from API');
+    }
+  } catch (error) {
+    console.error('Error generating response:', error);
+  } finally {
+    // Stop text cycling
+    clearInterval(textInterval);
+    
+    // Restore buttons
+    container.innerHTML = '';
+    container.appendChild(originalNormalButton);
+    container.appendChild(originalSpicyButton);
+    
+    // Re-attach event listeners
+    const newNormalButton = container.querySelector('.trolledin-normal-troll-button');
+    const newSpicyButton = container.querySelector('.trolledin-spicy-troll-button');
+    newNormalButton.addEventListener('click', () => handleTrollButtonClick(newNormalButton, newSpicyButton, container, post, 'normal'));
+    newSpicyButton.addEventListener('click', () => handleTrollButtonClick(newSpicyButton, newNormalButton, container, post, 'spicy'));
+  }
 }
 
 function observeCommentInput(post) {
