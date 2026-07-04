@@ -9,7 +9,7 @@ from services.llm import LLMService
 load_dotenv()
 
 app = FastAPI(
-    title="LinkedIn Troll Generator API",
+    title="SnarkedIn API",
     description="Takes scraped LinkedIn post data and generates snarky trolling comments.",
     version="1.0.0",
 )

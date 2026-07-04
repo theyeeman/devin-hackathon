@@ -1,5 +1,20 @@
-# devin-hackathon
-Devin hackathon
+# 🌶️ SnarkedIn - Fighting Fire with Fire
+
+A hackathon project dedicated to bringing chaos to the world, one LinkedIn post at a time.
+
+We chose LinkedIn as our battlefield because of the sheer number of AI-generated posts, buzzword-laden "thought leadership," and exaggerated claims flooding the platform. If they're going to fight with AI, we'll fight back with AI.
+
+## The Mission
+
+LinkedIn has become a wasteland of AI-generated content - "groundbreaking" products that don't exist, "revolutionary" insights that are just ChatGPT outputs, and "influencers" posting 10 times a day about changing the world while their company has 12 employees and no revenue.
+
+**We're here to fight fire with fire.**
+
+TrollBot uses AI to:
+- Scrape LinkedIn profiles to find concrete details about the poster
+- Research their claims using web search
+- Generate witty, sarcastic roasts that expose the gap between their confidence and reality
+- Fight the AI noise with AI noise
 
 ## Project Structure
 
@@ -44,11 +59,11 @@ cp .env.example .env
 
 ### Environment Variables
 
-| Variable | Description |
-| --- | --- |
-| `BRIGHT_DATA_API_KEY` | Your Bright Data API token |
-| `OPENROUTER_API_KEY` | Your OpenRouter API key |
-| `OPENROUTER_MODEL` | Model slug to use (default `openai/gpt-4o`) |
+| Variable              | Description                                 |
+| --------------------- | ------------------------------------------- |
+| `BRIGHT_DATA_API_KEY` | Your Bright Data API token                  |
+| `OPENROUTER_API_KEY`  | Your OpenRouter API key                     |
+| `OPENROUTER_MODEL`    | Model slug to use (default `openai/gpt-4o`) |
 
 ### Running the server
 
@@ -61,10 +76,10 @@ The API will be available at `http://localhost:8000`.
 
 ### API Endpoints
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/` | Health check |
-| `GET` | `/health` | Health check |
+| Method | Path                 | Description                |
+| ------ | -------------------- | -------------------------- |
+| `GET`  | `/`                  | Health check               |
+| `GET`  | `/health`            | Health check               |
 | `POST` | `/generate-comments` | Generate trolling comments |
 
 ### POST `/generate-comments`
@@ -81,8 +96,8 @@ The API will be available at `http://localhost:8000`.
 ```json
 {
   "comments": [
-    {"comment": "Hi John.. I see you 'shipped a groundbreaking AI product' — wasn't that just a wrapper around GPT-4? Groundbreaking indeed."},
-    {"comment": "Hi John.. 3 rocket emojis and 2 buzzwords in one post — your LinkedIn influencer certification is showing."},
+    {"comment": "Hi John.. I see you 'shipped a groundbreaking AI product' - wasn't that just a wrapper around GPT-4? Groundbreaking indeed."},
+    {"comment": "Hi John.. 3 rocket emojis and 2 buzzwords in one post - your LinkedIn influencer certification is showing."},
     {"comment": "Hi John.. You posted about changing the world but your company has 12 employees and no revenue. Bold strategy."},
     {"comment": "Hi John.. I love how 'shipped' means you deployed a landing page. The bar for groundbreaking is truly underground."}
   ],

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Devin Hackathon",
+  "name": "SnarkedIn",
   "version": "1.0",
-  "description": "Devin Hackathon",
+  "description": "SnarkedIn - Fighting Fire with Fire",
   "action": {
     "default_popup": "popup.html"
   },
