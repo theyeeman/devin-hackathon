@@ -34,6 +34,21 @@ function injectButtonStyles() {
       margin-left: 8px !important;
       border: none !important;
       white-space: nowrap !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+    }
+    .trolledin-spinner {
+      width: 14px !important;
+      height: 14px !important;
+      border: 2px solid rgba(255,255,255,0.3) !important;
+      border-top-color: white !important;
+      border-radius: 50% !important;
+      animation: trollspin 1s linear infinite !important;
+    }
+    @keyframes trollspin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   `;
   document.head.appendChild(style);
@@ -252,10 +267,57 @@ function addGenerateResponseButton(commentInput, post) {
   `;
   
   button.addEventListener('click', async () => {
-    // Show loading state
+    // Show loading state with spinner and cycling text
     const originalText = button.textContent;
-    button.textContent = 'Generating...';
     button.disabled = true;
+    
+    // Add spinner
+    const spinner = document.createElement('div');
+    spinner.className = 'trolledin-spinner';
+    button.innerHTML = '';
+    button.appendChild(spinner);
+    
+    // Cycle through text states randomly
+    const textStates = [
+      'Roasting',
+      'Dragging',
+      'Cooking',
+      'Grilling',
+      'Flaming',
+      'Clowning',
+      'Rinsing',
+      'Torching',
+      'Scorching',
+      'Eviscerating',
+      'Skewering',
+      'Needling',
+      'Ribbing',
+      'Taunting',
+      'Baiting',
+      'Jabbing',
+      'Sniping',
+      'Zinging',
+      'Dunking',
+      'Trashing',
+      'Smoking',
+      'Bodying',
+      'Packing',
+      'Violating',
+      'Ratioing',
+      'Owning',
+      'Dogging',
+      'Dissing',
+      'Blasting',
+      'Sassing'
+    ];
+    const textInterval = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * textStates.length);
+      button.innerHTML = '';
+      button.appendChild(spinner);
+      const textSpan = document.createElement('span');
+      textSpan.textContent = textStates[randomIndex] + '...';
+      button.appendChild(textSpan);
+    }, 2000);
     
     try {
       // Extract post data
@@ -292,6 +354,9 @@ function addGenerateResponseButton(commentInput, post) {
     } catch (error) {
       console.error('Error generating response:', error);
     } finally {
+      // Stop text cycling
+      clearInterval(textInterval);
+      
       // Reset button
       button.textContent = originalText;
       button.disabled = false;
@@ -301,6 +366,7 @@ function addGenerateResponseButton(commentInput, post) {
   // Insert button next to the comment input
   commentInput.parentElement.style.display = 'flex';
   commentInput.parentElement.style.alignItems = 'center';
+  commentInput.parentElement.style.justifyContent = 'space-between';
   commentInput.parentElement.appendChild(button);
 }
 
