@@ -28,6 +28,9 @@ function initializeInlineButtons() {
   // Add buttons to existing posts
   addButtonsToPosts();
   
+  // Start observing for comment inputs (for Write Comment button)
+  observeAllCommentInputs();
+  
   // Observe for new posts (infinite scroll)
   observeNewPosts();
 }
@@ -485,5 +488,154 @@ function extractContent(post) {
   }
   
   return post.textContent.substring(0, 5000).trim();
+}
+
+function findCommentButton(post) {
+  // Find the Comment button within the post
+  const buttons = post.querySelectorAll('button');
+  for (const button of buttons) {
+    const text = button.textContent.trim();
+    if (text === 'Comment') {
+      return button;
+    }
+  }
+  return null;
+}
+
+function clickCommentButton(post) {
+  const commentButton = findCommentButton(post);
+  if (commentButton) {
+    commentButton.click();
+    // Start observing for the comment input to appear
+    observeCommentInput(post);
+    return true;
+  }
+  return false;
+}
+
+function findCommentInput(post) {
+  // Wait for the comment input to appear after clicking the comment button
+  // Look for the contenteditable div with aria-label "Text editor for creating comment"
+  const input = post.querySelector('div[contenteditable="true"][aria-label="Text editor for creating comment"]');
+  if (input) {
+    return input;
+  }
+  
+  // Fallback: look for p with data-placeholder "Add a comment..."
+  const placeholder = post.querySelector('p[data-placeholder="Add a comment..."]');
+  if (placeholder) {
+    return placeholder.parentElement; // Return the parent contenteditable div
+  }
+  
+  return null;
+}
+
+function writeComment(post, commentText) {
+  const commentInput = findCommentInput(post);
+  if (commentInput) {
+    // Focus the input
+    commentInput.focus();
+    
+    // Set the text content
+    commentInput.textContent = commentText;
+    
+    // Trigger input events to ensure LinkedIn recognizes the change
+    const inputEvent = new Event('input', { bubbles: true });
+    commentInput.dispatchEvent(inputEvent);
+    
+    return true;
+  }
+  return false;
+}
+
+function addWriteCommentButton(commentInput, post) {
+  // Check if button already exists
+  if (commentInput.parentElement.querySelector('.trolledin-write-comment-button')) {
+    return;
+  }
+  
+  const button = document.createElement('button');
+  button.textContent = 'Write Comment';
+  button.className = 'trolledin-write-comment-button';
+  button.style.cssText = `
+    background: #0a66c2 !important;
+    color: white !important;
+    padding: 6px 12px !important;
+    border-radius: 16px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    margin-left: 8px !important;
+    border: none !important;
+    white-space: nowrap !important;
+  `;
+  
+  button.addEventListener('click', () => {
+    writeComment(post, 'sample comment inserted');
+  });
+  
+  // Insert button next to the comment input
+  commentInput.parentElement.style.display = 'flex';
+  commentInput.parentElement.style.alignItems = 'center';
+  commentInput.parentElement.appendChild(button);
+}
+
+function observeCommentInput(post) {
+  // Use MutationObserver to detect when comment input appears
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) { // Element node
+          // Check if the added node or its children contain the comment input
+          const commentInput = node.querySelector?.('div[contenteditable="true"][aria-label="Text editor for creating comment"]') ||
+                               (node.matches?.('div[contenteditable="true"][aria-label="Text editor for creating comment"]') ? node : null);
+          
+          if (commentInput) {
+            addWriteCommentButton(commentInput, post);
+          }
+        }
+      });
+    });
+  });
+  
+  observer.observe(post, { childList: true, subtree: true });
+  
+  // Also check immediately in case input already exists
+  setTimeout(() => {
+    const commentInput = findCommentInput(post);
+    if (commentInput) {
+      addWriteCommentButton(commentInput, post);
+    }
+  }, 100);
+}
+
+// Global observer to detect when user manually clicks Comment button
+function observeAllCommentInputs() {
+  const globalObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) { // Element node
+          // Check if the added node or its children contain the comment input
+          const commentInput = node.querySelector?.('div[contenteditable="true"][aria-label="Text editor for creating comment"]') ||
+                               (node.matches?.('div[contenteditable="true"][aria-label="Text editor for creating comment"]') ? node : null);
+          
+          if (commentInput) {
+            // Find the post this input belongs to
+            let post = commentInput.closest('.trolledin-post-marker');
+            if (!post) {
+              // If not marked, try to find the closest post container
+              post = commentInput.closest('[data-urn], [data-id], .feed-shared-update-v2, .feed-shared-update, article');
+            }
+            
+            if (post) {
+              addWriteCommentButton(commentInput, post);
+            }
+          }
+        }
+      });
+    });
+  });
+  
+  globalObserver.observe(document.body, { childList: true, subtree: true });
 }
 
