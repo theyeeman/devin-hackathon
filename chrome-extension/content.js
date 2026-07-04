@@ -114,11 +114,21 @@ function addButtonsToPosts() {
         continue;
       }
       
-      // Skip if immediate parent is marked (prevents direct nested duplicates)
-      // But don't check all ancestors - that was too aggressive and blocked other posts
-      const immediateParent = div.parentElement;
-      if (immediateParent && immediateParent.classList.contains('trolledin-post-marker')) {
-        continue;
+      // Skip if any ancestor is marked (prevents nested duplicates within same post)
+      // Limit depth to 5 to avoid blocking unrelated posts
+      let ancestor = div.parentElement;
+      let depth = 0;
+      let hasMarkedAncestor = false;
+      while (ancestor && depth < 5) {
+        if (ancestor.classList.contains('trolledin-post-marker')) {
+          hasMarkedAncestor = true;
+          break;
+        }
+        ancestor = ancestor.parentElement;
+        depth++;
+      }
+      if (hasMarkedAncestor) {
+        continue; // Skip this div, it's nested within a marked post
       }
       
       const text = div.textContent;
@@ -148,7 +158,11 @@ function addButtonsToPosts() {
         if (div.offsetHeight > 50 && div.offsetWidth > 200) {
           // Check minimum content length to avoid false positives (at least 300 characters)
           if (text.trim().length >= 300) {
-            posts.push(div);
+            // Must contain a profile URL (linkedin.com/in/*) to be a valid post
+            const hasProfileUrl = div.querySelector('a[href*="/in/"]');
+            if (hasProfileUrl) {
+              posts.push(div);
+            }
           }
         }
       }
