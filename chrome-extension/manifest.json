@@ -7,9 +7,6 @@
     "default_popup": "popup.html"
   },
   "permissions": ["activeTab"],
-  "background": {
-    "service_worker": "background.js"
-  },
   "content_scripts": [
     {
       "matches": ["https://www.linkedin.com/feed/*"],

@@ -1,15 +1,6 @@
 // Content script for LinkedIn feed interaction
 console.log('Content script loaded on:', window.location.href);
 
-// Listen for messages from popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'reAddButtons') {
-    console.log('Manual re-add buttons requested');
-    addButtonsToPosts();
-    sendResponse({ success: true });
-  }
-});
-
 // Only run on main feed
 if (!window.location.href.includes('linkedin.com/feed/')) {
   console.log('Not on LinkedIn feed, skipping');
@@ -25,50 +16,33 @@ function initializeInlineButtons() {
   // Inject CSS for buttons
   injectButtonStyles();
   
-  // Add buttons to existing posts
-  addButtonsToPosts();
-  
-  // Start observing for comment inputs (for Write Comment button)
+  // Start observing for comment inputs (for Generate Response button)
   observeAllCommentInputs();
-  
-  // Observe for new posts (infinite scroll)
-  observeNewPosts();
 }
 
 function injectButtonStyles() {
   const style = document.createElement('style');
   style.textContent = `
-    .trolledin-read-button {
-      background: #dc2626 !important;
+    .trolledin-generate-response-button {
+      background: #0a66c2 !important;
       color: white !important;
-      border: none !important;
-      padding: 8px 16px !important;
+      padding: 6px 12px !important;
       border-radius: 16px !important;
-      font-size: 14px !important;
+      font-size: 12px !important;
       font-weight: 600 !important;
       cursor: pointer !important;
-      margin: 4px !important;
+      margin-left: 8px !important;
+      border: none !important;
+      white-space: nowrap !important;
       display: inline-flex !important;
       align-items: center !important;
       gap: 6px !important;
-      z-index: 99999 !important;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
-      text-transform: none !important;
-      letter-spacing: normal !important;
-    }
-    .trolledin-read-button:hover {
-      background: #b91c1c !important;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important;
-    }
-    .trolledin-read-button:disabled {
-      background: #9ca3af !important;
-      cursor: not-allowed !important;
     }
     .trolledin-spinner {
       width: 14px !important;
       height: 14px !important;
-      border: 2px solid #ffffff !important;
-      border-top: 2px solid transparent !important;
+      border: 2px solid rgba(255,255,255,0.3) !important;
+      border-top-color: white !important;
       border-radius: 50% !important;
       animation: trollspin 1s linear infinite !important;
     }
@@ -78,284 +52,6 @@ function injectButtonStyles() {
     }
   `;
   document.head.appendChild(style);
-}
-
-function addButtonsToPosts() {
-  // Try multiple selector strategies to find posts
-  const selectorStrategies = [
-    '[data-urn]',
-    '[data-id]', 
-    '.feed-shared-update-v2',
-    '.feed-shared-update',
-    '[data-test-id="feed-update"]',
-    'article',
-    '.occludable-update'
-  ];
-  
-  let posts = [];
-  let usedSelector = '';
-  
-  for (const selector of selectorStrategies) {
-    const found = document.querySelectorAll(selector);
-    if (found.length > 0) {
-      posts = found;
-      usedSelector = selector;
-      break;
-    }
-  }
-  
-  // If still no posts, try a broader approach
-  if (posts.length === 0) {
-    // Look for elements that might be posts by checking for common post content
-    const allDivs = document.querySelectorAll('div');
-    
-    // Try to find divs that contain "Follow" buttons (likely posts)
-    // But be more selective - look for actual post containers
-    for (const div of allDivs) {
-      // Skip if this div is already marked as having a button (prevents nested duplicates)
-      if (div.classList.contains('trolledin-post-marker')) {
-        continue;
-      }
-      
-      // Skip if any ancestor is marked (prevents nested duplicates within same post)
-      // Limit depth to 5 to avoid blocking unrelated posts
-      let ancestor = div.parentElement;
-      let depth = 0;
-      let hasMarkedAncestor = false;
-      while (ancestor && depth < 5) {
-        if (ancestor.classList.contains('trolledin-post-marker')) {
-          hasMarkedAncestor = true;
-          break;
-        }
-        ancestor = ancestor.parentElement;
-        depth++;
-      }
-      if (hasMarkedAncestor) {
-        continue; // Skip this div, it's nested within a marked post
-      }
-      
-      const text = div.textContent;
-      const textLower = text.toLowerCase();
-      
-      // Skip if this looks like a reaction bar (only has action buttons)
-      const actionWords = ['like', 'comment', 'repost', 'send'];
-      const actionWordCount = actionWords.filter(word => textLower.includes(word)).length;
-      const totalWords = text.split(/\s+/).length;
-      
-      // If it's mostly action words and very little other content, skip it
-      if (actionWordCount >= 3 && totalWords < 20) {
-        continue; // Skip reaction bars
-      }
-      
-      // Must have multiple post indicators to reduce false positives
-      const hasFollow = text.includes('Follow') || text.includes('+ Follow');
-      const hasLike = text.includes('Like');
-      const hasComment = text.includes('Comment');
-      const hasRepost = text.includes('Repost') || text.includes('Repost');
-      
-      // Only consider it a post if it has at least 2 of these indicators
-      const indicators = [hasFollow, hasLike, hasComment, hasRepost].filter(Boolean).length;
-      
-      if (indicators >= 2 && !div.querySelector('.trolledin-read-button')) {
-        // Also check that it's not too small (likely a button itself)
-        if (div.offsetHeight > 50 && div.offsetWidth > 200) {
-          // Check minimum content length to avoid false positives (at least 300 characters)
-          if (text.trim().length >= 300) {
-            // Must contain a profile URL (linkedin.com/in/*) to be a valid post
-            const hasProfileUrl = div.querySelector('a[href*="/in/"]');
-            if (hasProfileUrl) {
-              posts.push(div);
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  posts.forEach(post => {
-    // Skip if button already exists (check for our button by text content)
-    const existingButtons = post.querySelectorAll('button');
-    for (const btn of existingButtons) {
-      if (btn.textContent.includes('Read Contents')) {
-        return; // Skip this post, button already exists
-      }
-    }
-    
-    // Apply character filter to all posts (not just fallback detection)
-    const text = post.textContent || '';
-    if (text.trim().length < 300) {
-      return; // Skip posts with less than 300 characters
-    }
-    
-    addReadButton(post);
-  });
-}
-
-function getButtonStyles() {
-  return `
-    background: #dc2626 !important;
-    color: white !important;
-    padding: 8px 16px !important;
-    border-radius: 16px !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
-    cursor: pointer !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
-    margin: 4px !important;
-    position: relative !important;
-    z-index: 999999 !important;
-    border: none !important;
-    text-decoration: none !important;
-    pointer-events: auto !important;
-    white-space: nowrap !important;
-    flex-shrink: 0 !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  `;
-}
-
-function addReadButton(post) {
-  // Insert button directly into the post's DOM so it scrolls naturally
-  const button = createReadButton(post);
-  
-  const buttonId = 'trolledin-btn-' + Math.random().toString(36).substr(2, 9);
-  button.id = buttonId;
-  
-  // Mark the post AFTER button insertion to avoid nested detection issues
-  post.classList.add('trolledin-post-marker');
-  
-  // Try to find a good insertion point
-  const followButton = findFollowButton(post);
-  
-  if (followButton && followButton.parentNode) {
-    // Insert next to Follow button
-    followButton.parentNode.insertBefore(button, followButton.nextSibling);
-  } else {
-    // Fallback: insert at the beginning of the post
-    post.insertBefore(button, post.firstChild);
-  }
-  
-  // Apply strong inline styles to protect from LinkedIn CSS
-  button.style.cssText = getButtonStyles();
-  
-  // Use MutationObserver to protect button from removal
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      mutation.removedNodes.forEach((node) => {
-        if (node === button || (node.contains && node.contains(button))) {
-          // Re-insert the button
-          if (followButton && followButton.parentNode) {
-            followButton.parentNode.insertBefore(button, followButton.nextSibling);
-          } else {
-            post.insertBefore(button, post.firstChild);
-          }
-          // Re-apply styles
-          button.style.cssText = getButtonStyles();
-        }
-      });
-    });
-  });
-  
-  observer.observe(post, { childList: true, subtree: true });
-  
-  // Store observer on button for cleanup
-  button._observer = observer;
-}
-
-function findFollowButton(post) {
-  // Try multiple ways to find the Follow button
-  // 1. By text content
-  const allButtons = post.querySelectorAll('button, a');
-  for (const btn of allButtons) {
-    if (btn.textContent.trim() === 'Follow' || btn.textContent.trim() === '+ Follow') {
-      return btn;
-    }
-  }
-  
-  // 2. By aria-label
-  const ariaButtons = post.querySelectorAll('[aria-label*="Follow" i], [aria-label*="follow" i]');
-  if (ariaButtons.length > 0) {
-    return ariaButtons[0];
-  }
-  
-  // 3. By data-testid
-  const dataTestButton = post.querySelector('[data-testid*="follow" i]');
-  if (dataTestButton) {
-    return dataTestButton;
-  }
-  
-  return null;
-}
-
-function createReadButton(post) {
-  const button = document.createElement('button');
-  button.innerHTML = '<span>Read Contents</span>';
-  button.onclick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleReadClick(button, post);
-  };
-  return button;
-}
-
-function handleReadClick(button, post) {
-  // Show loading state
-  const originalContent = button.innerHTML;
-  button.innerHTML = '<div class="trolledin-spinner"></div><span>Reading...</span>';
-  button.disabled = true;
-  
-  // Extract post data
-  const postData = extractPostData(post);
-  
-  // Log to console
-  console.log('Post data extracted:', JSON.stringify(postData, null, 2));
-  
-  // Send to background
-  chrome.runtime.sendMessage({ action: 'postSelected', post: postData });
-  
-  // Reset button after short delay
-  setTimeout(() => {
-    button.innerHTML = originalContent;
-    button.disabled = false;
-  }, 500);
-}
-
-function observeNewPosts() {
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.addedNodes.length > 0) {
-        // Check if any added nodes contain posts
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            // Check if the node itself is a post or contains posts
-            if (node.matches && (node.matches('[data-urn], [data-id], .feed-shared-update-v2') ||
-                node.querySelector('[data-urn], [data-id], .feed-shared-update-v2'))) {
-              addButtonsToPosts();
-            }
-            // Also check for posts using our content-based detection
-            const text = node.textContent || '';
-            const hasFollow = text.includes('Follow') || text.includes('+ Follow');
-            const hasLike = text.includes('Like');
-            const hasComment = text.includes('Comment');
-            const hasRepost = text.includes('Repost');
-            const indicators = [hasFollow, hasLike, hasComment, hasRepost].filter(Boolean).length;
-            if (indicators >= 2) {
-              addButtonsToPosts();
-            }
-          }
-        });
-      }
-    });
-  });
-  
-  // Start observing the document body
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
 }
 
 function extractPostData(postElement) {
@@ -548,15 +244,15 @@ function writeComment(post, commentText) {
   return false;
 }
 
-function addWriteCommentButton(commentInput, post) {
+function addGenerateResponseButton(commentInput, post) {
   // Check if button already exists
-  if (commentInput.parentElement.querySelector('.trolledin-write-comment-button')) {
+  if (commentInput.parentElement.querySelector('.trolledin-generate-response-button')) {
     return;
   }
   
   const button = document.createElement('button');
-  button.textContent = 'Write Comment';
-  button.className = 'trolledin-write-comment-button';
+  button.textContent = 'Generate Response';
+  button.className = 'trolledin-generate-response-button';
   button.style.cssText = `
     background: #0a66c2 !important;
     color: white !important;
@@ -570,13 +266,107 @@ function addWriteCommentButton(commentInput, post) {
     white-space: nowrap !important;
   `;
   
-  button.addEventListener('click', () => {
-    writeComment(post, 'sample comment inserted');
+  button.addEventListener('click', async () => {
+    // Show loading state with spinner and cycling text
+    const originalText = button.textContent;
+    button.disabled = true;
+    
+    // Add spinner
+    const spinner = document.createElement('div');
+    spinner.className = 'trolledin-spinner';
+    button.innerHTML = '';
+    button.appendChild(spinner);
+    
+    // Cycle through text states randomly
+    const textStates = [
+      'Roasting',
+      'Dragging',
+      'Cooking',
+      'Grilling',
+      'Flaming',
+      'Clowning',
+      'Rinsing',
+      'Torching',
+      'Scorching',
+      'Eviscerating',
+      'Skewering',
+      'Needling',
+      'Ribbing',
+      'Taunting',
+      'Baiting',
+      'Jabbing',
+      'Sniping',
+      'Zinging',
+      'Dunking',
+      'Trashing',
+      'Smoking',
+      'Bodying',
+      'Packing',
+      'Violating',
+      'Ratioing',
+      'Owning',
+      'Dogging',
+      'Dissing',
+      'Blasting',
+      'Sassing'
+    ];
+    const textInterval = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * textStates.length);
+      button.innerHTML = '';
+      button.appendChild(spinner);
+      const textSpan = document.createElement('span');
+      textSpan.textContent = textStates[randomIndex] + '...';
+      button.appendChild(textSpan);
+    }, 2000);
+    
+    try {
+      // Extract post data
+      const postData = extractPostData(post);
+      console.log('Sending to API:', JSON.stringify(postData, null, 2));
+      
+      // Call the API
+      const response = await fetch('http://localhost:8000/generate-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: postData.content,
+          user: postData.author_url
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('API response:', JSON.stringify(result, null, 2));
+      
+      // Randomly select one comment
+      if (result.comments && result.comments.length > 0) {
+        const randomIndex = Math.floor(Math.random() * result.comments.length);
+        const selectedComment = result.comments[randomIndex].comment;
+        
+        // Write the selected comment to the input field
+        writeComment(post, selectedComment);
+      } else {
+        console.error('No comments returned from API');
+      }
+    } catch (error) {
+      console.error('Error generating response:', error);
+    } finally {
+      // Stop text cycling
+      clearInterval(textInterval);
+      
+      // Reset button
+      button.textContent = originalText;
+      button.disabled = false;
+    }
   });
   
   // Insert button next to the comment input
   commentInput.parentElement.style.display = 'flex';
   commentInput.parentElement.style.alignItems = 'center';
+  commentInput.parentElement.style.justifyContent = 'space-between';
   commentInput.parentElement.appendChild(button);
 }
 
@@ -591,7 +381,7 @@ function observeCommentInput(post) {
                                (node.matches?.('div[contenteditable="true"][aria-label="Text editor for creating comment"]') ? node : null);
           
           if (commentInput) {
-            addWriteCommentButton(commentInput, post);
+            addGenerateResponseButton(commentInput, post);
           }
         }
       });
@@ -604,13 +394,14 @@ function observeCommentInput(post) {
   setTimeout(() => {
     const commentInput = findCommentInput(post);
     if (commentInput) {
-      addWriteCommentButton(commentInput, post);
+      addGenerateResponseButton(commentInput, post);
     }
   }, 100);
 }
 
 // Global observer to detect when user manually clicks Comment button
 function observeAllCommentInputs() {
+  console.log('Starting observer for comment inputs');
   const globalObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       mutation.addedNodes.forEach((node) => {
@@ -620,15 +411,44 @@ function observeAllCommentInputs() {
                                (node.matches?.('div[contenteditable="true"][aria-label="Text editor for creating comment"]') ? node : null);
           
           if (commentInput) {
+            console.log('Found comment input:', commentInput);
             // Find the post this input belongs to
             let post = commentInput.closest('.trolledin-post-marker');
             if (!post) {
-              // If not marked, try to find the closest post container
-              post = commentInput.closest('[data-urn], [data-id], .feed-shared-update-v2, .feed-shared-update, article');
+              // If not marked, try to find the closest post container with more selectors
+              post = commentInput.closest('[data-urn], [data-id], .feed-shared-update-v2, .feed-shared-update, article, .feed-shared-update-v2__comment-list, .feed-shared-update-v2__comments-container');
             }
             
+            // If still not found, try going up the DOM tree to find a container with post-like content
+            if (!post) {
+              let parent = commentInput.parentElement;
+              let depth = 0;
+              while (parent && depth < 15) {
+                const text = parent.textContent || '';
+                const hasFollow = text.includes('Follow') || text.includes('+ Follow');
+                const hasLike = text.includes('Like');
+                const hasComment = text.includes('Comment');
+                const hasRepost = text.includes('Repost');
+                const indicators = [hasFollow, hasLike, hasComment, hasRepost].filter(Boolean).length;
+                
+                // Also check for profile URL
+                const hasProfileUrl = parent.querySelector('a[href*="/in/"]');
+                
+                if (indicators >= 2 && text.trim().length >= 300 && hasProfileUrl) {
+                  post = parent;
+                  console.log('Found post via DOM traversal at depth', depth);
+                  break;
+                }
+                parent = parent.parentElement;
+                depth++;
+              }
+            }
+            
+            console.log('Found post:', post);
             if (post) {
-              addWriteCommentButton(commentInput, post);
+              addGenerateResponseButton(commentInput, post);
+            } else {
+              console.log('Could not find post for comment input, skipping button addition');
             }
           }
         }
@@ -637,5 +457,6 @@ function observeAllCommentInputs() {
   });
   
   globalObserver.observe(document.body, { childList: true, subtree: true });
+  console.log('Observer started on document.body');
 }
 
