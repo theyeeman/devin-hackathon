@@ -11,7 +11,7 @@ devin-hackathon/
 │   ├── models.py       # Pydantic request/response models
 │   ├── services/
 │   │   ├── bright_data.py  # Bright Data API client for LinkedIn profile scraping
-│   │   └── llm.py          # OpenAI LLM service with web search for troll generation
+│   │   └── llm.py          # OpenRouter LLM service with web search for troll generation
 │   ├── requirements.txt
 │   └── .env.example
 └── README.md
@@ -31,7 +31,7 @@ devin-hackathon/
 
 - Python 3.10+
 - A [Bright Data](https://brightdata.com/) account with an API key (for LinkedIn profile scraping)
-- An [OpenAI](https://platform.openai.com/) API key
+- An [OpenRouter](https://openrouter.ai/) API key
 
 ### Installation
 
@@ -45,9 +45,10 @@ cp .env.example .env
 ### Environment Variables
 
 | Variable | Description |
-| --- | --- | --- |
+| --- | --- |
 | `BRIGHT_DATA_API_KEY` | Your Bright Data API token |
-| `OPENAI_API_KEY` | Your OpenAI API key |
+| `OPENROUTER_API_KEY` | Your OpenRouter API key |
+| `OPENROUTER_MODEL` | Model slug to use (default `openai/gpt-4o`) |
 
 ### Running the server
 
@@ -94,7 +95,7 @@ The API will be available at `http://localhost:8000`.
 
 1. The Chrome extension sends the LinkedIn post content and the poster's profile URL to the backend.
 2. The backend uses **Bright Data's LinkedIn Scraper API** to scrape the poster's full profile (work history, education, skills, etc.).
-3. The backend sends the post content + profile info to **OpenAI's GPT-4o** with the **web search tool** enabled.
+3. The backend sends the post content + profile info to an LLM via **OpenRouter** (default `openai/gpt-4o`) with the **web search server tool** enabled.
 4. The LLM searches the web for ground truths about the post's topic and the person's claims.
 5. Using both the profile data and web search results, the LLM identifies "weak spots" and generates 4 snarky trolling comments.
 6. Each comment starts with `"Hi <first name>.."` and targets a different angle.

@@ -14,16 +14,22 @@ funny, teasing comment that busts their balls — the kind a close friend would 
 
 Rules:
 1. Each comment MUST start with "Hi <first name>.." (using the poster's first name).
-2. Comments should be funny and teasing, not mean-spirited or offensive.
-3. Use specific details from the person's profile or the topic to make the comment personal.
-4. Find a genuine "weak spot" — a funny contradiction, an over-the-top claim, a humblebrag, \
-a buzzword overload, or something that begs to be poked fun at.
-5. Keep each comment to 2-4 sentences. Concise and punchy.
-6. Generate exactly 4 different comments, each targeting a different angle or weak spot.
+2. HARD REQUIREMENT — every single comment MUST weave in at least one CONCRETE, specific \
+detail from the person's profile (their university, current or past company, job title, \
+location, degree, follower/connection count, skills, etc.). Never write a generic comment. \
+For example, if they studied at UBC, mock them with something like "did they teach you that \
+at UBC?"; if they work at a company, drag that company into the joke. If a profile detail is \
+available, it MUST appear in the comment.
+3. HARD REQUIREMENT — you MUST use web search to research the SUBJECT of the post, then find \
+real GAPS, holes, oversimplifications, missing nuance, or factual weaknesses in their argument, \
+and troll them HARD on those gaps. Be brutal and cutting (but still funny, not slurs/hate).
+4. Combine #2 and #3: tie the profile detail TO the gap in their post for maximum burn.
+5. Keep each comment to 2-4 sentences. Concise, punchy, and savage.
+6. Generate exactly 4 different comments, each targeting a different angle, gap, or weak spot.
 
-You have access to web search. Use it to research the topic of the LinkedIn post to \
-find ground truths, facts, or funny contradictions related to what they're posting about. \
-Also search for anything interesting or funny about the person or their company.
+You have access to web search. You MUST use it to research the topic/claims of the LinkedIn \
+post to find ground truths, counter-arguments, data, or contradictions that expose the holes \
+in what they wrote. Also use the profile info to make every jab personal.
 
 Return your response as a JSON object with this exact structure:
 {
@@ -38,12 +44,17 @@ Return your response as a JSON object with this exact structure:
 """
 
 
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_MODEL = "openai/gpt-4o"
+
+
 class LLMService:
     def __init__(self) -> None:
-        self.api_key = os.environ.get("OPENAI_API_KEY", "")
+        self.api_key = os.environ.get("OPENROUTER_API_KEY", "")
         if not self.api_key:
-            raise RuntimeError("OPENAI_API_KEY environment variable is not set")
-        self.client = OpenAI(api_key=self.api_key)
+            raise RuntimeError("OPENROUTER_API_KEY environment variable is not set")
+        self.model = os.environ.get("OPENROUTER_MODEL", DEFAULT_MODEL)
+        self.client = OpenAI(api_key=self.api_key, base_url=OPENROUTER_BASE_URL)
         self.bright_data = BrightDataService()
 
     def _extract_first_name(self, profile_data: dict) -> str:
@@ -97,31 +108,34 @@ Here is the LinkedIn profile information of the person who made the post:
 --- END PROFILE INFO ---
 
 Now, please:
-1. Search the web to find ground truths, facts, or funny contradictions about the \
-topic of the post. Look for anything that can be used to tease the poster.
-2. Search the web for anything interesting or funny about the person's company, \
-industry, or claims.
-3. Using what you found from the web search AND the profile info above, identify \
-a "weak spot" — something funny, contradictory, or over-the-top about this person \
-or their post.
-4. Generate exactly 4 snarky trolling comments. Each must start with "Hi {first_name}..". \
-Each comment should target a different angle or weak spot.
+1. USE WEB SEARCH on the subject/claims of the post. Find real data, counter-arguments, \
+nuance, or facts that expose the GAPS, holes, or oversimplifications in their argument.
+2. Identify the biggest weaknesses in the post — what did they conveniently ignore, \
+oversimplify, or get wrong? These gaps are your ammunition.
+3. Pull CONCRETE details from the profile info above (university, company, title, location, \
+degree, follower/connection numbers, skills). Every comment MUST use at least one of these.
+4. Generate exactly 4 savage trolling comments. Each must start with "Hi {first_name}..", \
+each must reference a specific profile detail (e.g. "did they teach you that at <their school>?"), \
+and each must attack a gap in the post's argument. Tie the profile detail to the content gap.
 
-Remember: be funny and teasing, not mean. These are ball-busting comments a friend would make.
+Remember: be brutal, cutting, and funny — really bust their balls. No slurs or hateful content, \
+but do NOT hold back on roasting the weaknesses in their post and profile.
 
 Return ONLY the JSON object as specified.
 """
 
-        # Step 3: Call OpenAI with web search tool
-        response = self.client.responses.create(
-            model="gpt-4o",
-            tools=[{"type": "web_search"}],
-            instructions=SYSTEM_PROMPT,
-            input=user_prompt,
+        # Step 3: Call the model via OpenRouter with the web search server tool
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            extra_body={"tools": [{"type": "openrouter:web_search"}]},
         )
 
         # Extract the text output from the response
-        output_text = response.output_text
+        output_text = response.choices[0].message.content or ""
 
         # Step 4: Parse the JSON response
         try:

@@ -2,16 +2,45 @@ import os
 import pytest
 
 os.environ.setdefault("BRIGHT_DATA_API_KEY", "test-key")
-os.environ.setdefault("OPENAI_API_KEY", "test-key")
+os.environ.setdefault("OPENROUTER_API_KEY", "test-key")
 
 from services.llm import LLMService
+
+
+class _FakeChat:
+    def __init__(self):
+        self.completions = None
+
+
+def _make_completions(content):
+    """Build a stub that mimics client.chat.completions with a create() method
+    returning an OpenAI-style chat completion response.
+    """
+
+    class _Message:
+        def __init__(self, text):
+            self.content = text
+
+    class _Choice:
+        def __init__(self, text):
+            self.message = _Message(text)
+
+    class _Response:
+        def __init__(self, text):
+            self.choices = [_Choice(text)]
+
+    class _Completions:
+        def create(self, **kwargs):
+            return _Response(content)
+
+    return _Completions()
 
 
 class _FakeClient:
     """A stub OpenAI client that allows attribute assignment in tests."""
 
-    def __init__(self, api_key=None):
-        self.responses = None
+    def __init__(self, api_key=None, base_url=None):
+        self.chat = _FakeChat()
 
 
 @pytest.fixture
@@ -21,8 +50,8 @@ def service(monkeypatch):
     return LLMService()
 
 
-def test_missing_openai_key(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+def test_missing_openrouter_key(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with pytest.raises(RuntimeError):
         LLMService()
 
@@ -59,21 +88,15 @@ async def test_generate_troll_comments_full_pipeline(service, monkeypatch):
 
     monkeypatch.setattr(service.bright_data, "scrape_linkedin_profile", fake_scrape)
 
-    class FakeResponse:
-        output_text = (
-            '{"comments": ['
-            '"Hi Elon.. sure buddy.", '
-            '"Hi Elon.. nice rocket.", '
-            '"Hi Elon.. wow, groundbreaking.", '
-            '"Hi Elon.. LinkedIn genius alert."'
-            '], "topic_summary": "The topic is overhyped."}'
-        )
-
-    class FakeResponses:
-        def create(self, **kwargs):
-            return FakeResponse()
-
-    service.client.responses = FakeResponses()
+    content = (
+        '{"comments": ['
+        '"Hi Elon.. sure buddy.", '
+        '"Hi Elon.. nice rocket.", '
+        '"Hi Elon.. wow, groundbreaking.", '
+        '"Hi Elon.. LinkedIn genius alert."'
+        '], "topic_summary": "The topic is overhyped."}'
+    )
+    service.client.chat.completions = _make_completions(content)
 
     result = await service.generate_troll_comments(
         post_content="I just revolutionized the world with AI!",
@@ -92,14 +115,7 @@ async def test_generate_troll_comments_bad_json_fallback(service, monkeypatch):
 
     monkeypatch.setattr(service.bright_data, "scrape_linkedin_profile", fake_scrape)
 
-    class FakeResponse:
-        output_text = "totally not json"
-
-    class FakeResponses:
-        def create(self, **kwargs):
-            return FakeResponse()
-
-    service.client.responses = FakeResponses()
+    service.client.chat.completions = _make_completions("totally not json")
 
     result = await service.generate_troll_comments(
         post_content="hello world",

@@ -3,7 +3,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("BRIGHT_DATA_API_KEY", "test-key")
-os.environ.setdefault("OPENAI_API_KEY", "test-key")
+os.environ.setdefault("OPENROUTER_API_KEY", "test-key")
 
 import main
 from main import app
