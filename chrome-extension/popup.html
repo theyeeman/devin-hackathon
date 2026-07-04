@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <style>
     body {
-      width: 300px;
+      width: 350px;
       padding: 16px;
       font-family: Arial, sans-serif;
     }
@@ -12,23 +12,45 @@
       font-size: 18px;
       margin: 0 0 12px 0;
     }
-    button {
+    .button {
       background: #4285f4;
       color: white;
       border: none;
       padding: 8px 16px;
       border-radius: 4px;
       cursor: pointer;
+      width: 100%;
+      margin-bottom: 8px;
+      font-size: 14px;
     }
-    button:hover {
+    .button:hover {
       background: #3367d6;
+    }
+    .status {
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+    }
+    .info {
+      background: #e3f2fd;
+      padding: 12px;
+      border-radius: 4px;
+      margin-top: 12px;
+      font-size: 12px;
     }
   </style>
 </head>
 <body>
-  <h1>Hello Extension</h1>
-  <button id="clickMe">Click Me</button>
-  <p id="status"></p>
+  <h1>Devin Hackathon</h1>
+  <button id="reAddButtons" class="button">Re-add Buttons</button>
+  <p id="status" class="status">Extension active on LinkedIn feed</p>
+  <div class="info">
+    <strong>How to use:</strong><br>
+    • Navigate to LinkedIn feed<br>
+    • Click the red "Read Contents" button on any post<br>
+    • Check browser console (F12) for extracted data<br>
+    • If buttons disappear, click "Re-add Buttons"
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>
